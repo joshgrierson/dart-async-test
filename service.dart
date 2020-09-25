@@ -21,28 +21,28 @@ class DataService {
 
     DataService() {}
 
-    Future<List> requestPosts() async {
+    Future<List<DataModel>> requestPosts() async {
         const postsUrl = "$baseUrl/posts";
 
         try {
             var response = await http.get(postsUrl);
 
             if (response.statusCode >= 400) {
-                throw APIException("$baseUrl returned ${response.statusCode} status code");
+                throw APIException("$postsUrl returned ${response.statusCode} status code");
             }
 
             print("Fetched data.");
 
             List posts = jsonDecode(response.body);
-            List postList = new List();
+            List<DataModel> postList = new List<DataModel>();
 
             posts.forEach(
-                (post) => postList.add(DataModel(post))
+                (post) => postList.add(new DataModel(post))
             );
 
             return postList;
         } catch (err) {
-            print("Exception: $err");
+            print("DataService error");
             throw err;
         }
     }
