@@ -1,6 +1,8 @@
 import "apiexception.dart";
+import "memcache.dart";
 import "dart:convert";
 import "package:http/http.dart" as http;
+import "package:meta/meta.dart";
 
 class DataModel {
     int userId;
@@ -16,55 +18,39 @@ class DataModel {
     }
 }
 
-class MemCache {
-    int timestamp;
-    String data;
-
-    MemCache(String data, int timestamp) {
-        this.data = data;
-        this.timestamp = timestamp;
-    }
-}
-
 class DataService {
     static const String baseUrl = "https://jsonplaceholder.typicode.com";
-    static const int memCacheExpire = 60 * 100; // 10 secs
 
     int _elapsedMilliseconds;
 
     bool _enableMemCache = false;
 
-    Map<String, MemCache> _memCache;
+    MemCache _memCache;
 
     Stopwatch _stopwatch;
 
-    DataService(bool enableMemCache) {
+    DataService({ @required MemCache memCache, bool enableMemCache }) {
         this._enableMemCache = enableMemCache;
-        this._memCache = new Map<String, MemCache>();
+        this._memCache = memCache;
         this._stopwatch = new Stopwatch();
     }
 
     Future<List<DataModel>> fetchPosts(String endpoint) async {
-        final date = new DateTime.now();
         final cacheKey = baseUrl + endpoint;
 
         if (this._enableMemCache) {
-            if (
-                !this._memCache.containsKey(cacheKey) ||
-                (date.millisecond - this._memCache[cacheKey].timestamp) >= DataService.memCacheExpire
-            ) {
-                await this._requestPosts(endpoint);
-            } else {
-                print("Reading from mem cache using key '$baseUrl$endpoint'");
-            }
+            await this._memCache.invalidate(
+                cacheKey,
+                () => this._requestPosts(endpoint)
+            );
         }
 
         return this._convertToTypedList(
-            jsonDecode(this._memCache[cacheKey].data)
+            jsonDecode(this._memCache.getCachedData(cacheKey))
         );
     }
 
-    Future<List<DataModel>> _requestPosts(String endpoint) async {
+    Future<void> _requestPosts(String endpoint) async {
         final postsUrl = baseUrl + endpoint;
 
         try {
@@ -83,13 +69,9 @@ class DataService {
 
             print("Fetched data.");
 
-            List posts = jsonDecode(response.body);
-
             if (this._enableMemCache) {
-                this.storeInMem(postsUrl, response.body);
+                this._memCache.store(postsUrl, response.body);
             }
-
-            return this._convertToTypedList(posts);
         } catch (err) {
             print("DataService error");
             throw err;
@@ -98,12 +80,6 @@ class DataService {
 
     int get elapsedTime {
         return this._elapsedMilliseconds;
-    }
-
-    void storeInMem(String key, String data) {
-        final date = new DateTime.now();
-
-        this._memCache[key] = new MemCache(data, date.millisecond);
     }
 
     List<DataModel> _convertToTypedList(List posts) {

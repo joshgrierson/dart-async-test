@@ -1,8 +1,10 @@
 import "service.dart";
+import "memcache.dart";
 
 void main() async {
     // initialise class
-    final dataService = new DataService(true);
+    final memCache = new MemCache();
+    final dataService = new DataService(memCache: memCache, enableMemCache: true);
 
     print("Fetching data...");
 
