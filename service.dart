@@ -34,16 +34,21 @@ class DataService {
             print("Fetched data.");
 
             List posts = jsonDecode(response.body);
-            List<DataModel> postList = new List<DataModel>();
 
-            posts.forEach(
-                (post) => postList.add(new DataModel(post))
-            );
-
-            return postList;
+            return this._convertToTypedList(posts);
         } catch (err) {
             print("DataService error");
             throw err;
         }
+    }
+
+    List<DataModel> _convertToTypedList(List posts) {
+        List<DataModel> postList = new List<DataModel>();
+
+        posts.forEach(
+            (post) => postList.add(new DataModel(post))
+        );
+
+        return postList;
     }
 }
